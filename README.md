@@ -1,4 +1,4 @@
-# Business Dossier SaaS
+# Gerador de Dossiê Empresarial
 
 Uma plataforma SaaS abrangente que gera automaticamente dossiês empresariais a partir de números de CNPJ. O sistema realiza consultas a APIs para compilar relatórios detalhados contendo informações da empresa.
 

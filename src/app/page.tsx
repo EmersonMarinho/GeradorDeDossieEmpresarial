@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PDFViewer, usePDF } from '@react-pdf/renderer'
 import { CompanyData } from '@/components/CompanyData'
 import { LegalData } from '@/components/LegalData'
@@ -21,9 +21,17 @@ export default function Home() {
   const [pdfView, setPdfView] = useState<'full' | 'minimal'>('full')
   const [isPdfVisible, setIsPdfVisible] = useState(false)
 
-  // Move PDF hooks to component level
-  const [fullPdf] = usePDF({ document: companyData ? <DossierPDF data={companyData} /> : undefined })
-  const [minimalPdf] = usePDF({ document: companyData ? <MinimalDossierPDF data={companyData} /> : undefined })
+  const [fullPdf, setFullPdf] = useState<any>(null)
+  const [minimalPdf, setMinimalPdf] = useState<any>(null)
+
+  useEffect(() => {
+    if (companyData) {
+      const [generatedFullPdf] = usePDF({ document: <DossierPDF data={companyData} /> })
+      const [generatedMinimalPdf] = usePDF({ document: <MinimalDossierPDF data={companyData} /> })
+      setFullPdf(generatedFullPdf)
+      setMinimalPdf(generatedMinimalPdf)
+    }
+  }, [companyData])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -133,8 +133,8 @@ function generateRecommendations(data: PublicData): Array<{ priority: 'high' | '
   if (data.financial.profit < 0) {
     recommendations.push({
       priority: 'medium' as const,
-      message: 'Melhora do Desempenho Financeiro',
-      action: 'Avalie a estratégia de negócios e a estrutura de custos'
+      message: 'Melhorar a Estratégia de Negócios',
+      action: 'Avalie As estratégias de negócios e a estrutura de custos'
     })
   }
 
@@ -142,7 +142,7 @@ function generateRecommendations(data: PublicData): Array<{ priority: 'high' | '
   if (data.news.length < 5) {
     recommendations.push({
       priority: 'low' as const,
-      message: 'Melhora do Desempenho Financeiro',
+      message: 'Melhorar o Desempenho Financeiro',
       action: 'Avalie a estratégia de negócios e a estrutura de custos'
     })
   }

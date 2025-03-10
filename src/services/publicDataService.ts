@@ -48,19 +48,40 @@ interface PublicData {
 
 interface ReceitaFederalResponse {
   razao_social: string
-  natureza_juridica: string
-  capital_social: number
-  data_inicio_atividade: string
-  descricao_situacao_cadastral: string
-  endereco: {
+  natureza_juridica: {
+    id: string
+    descricao: string
+  }
+  capital_social: string
+  estabelecimento: {
+    data_inicio_atividade: string
+    situacao_cadastral: string
+    tipo_logradouro: string
     logradouro: string
     numero: string
     complemento: string
     bairro: string
-    municipio: string
-    uf: string
+    cidade: {
+      nome: string
+    }
+    estado: {
+      sigla: string
+    }
     cep: string
+    atividade_principal: {
+      id: string
+      descricao: string
+    }
+    atividades_secundarias: Array<{
+      id: string
+      descricao: string
+    }>
   }
+  socios: Array<{
+    nome: string
+    cpf_cnpj_socio: string
+    tipo: string
+  }>
 }
 
 interface CompanyApiResponse {
@@ -201,83 +222,55 @@ export class PublicDataService {
   }
 
   private async fetchCompanyData(cnpj: string): Promise<CompanyData> {
-    // Remove any non-numeric characters from CNPJ
     const cleanCNPJ = cnpj.replace(/\D/g, '')
-    
-    // Special case for Ambev
-    if (cleanCNPJ === '07526557000100') {
-      return {
-        name: 'Ambev S.A.',
-        cnpj: formatCNPJ(cleanCNPJ),
-        legalNature: 'Sociedade Anônima Aberta',
-        capital: 57614140742.36, // Real capital value from Ambev
-        foundingDate: '2004-07-14', // Real founding date
-        status: 'Ativa',
-        address: {
-          street: 'Rua Dr. Renato Paes de Barros',
-          number: '1017',
-          complement: '3º Andar',
-          neighborhood: 'Itaim Bibi',
-          city: 'São Paulo',
-          state: 'SP',
-          zipCode: '04530-001'
-        },
-        partners: [
-          {
-            name: 'Ambrew S.A.',
-            document: 'Empresa Estrangeira',
-            type: 'Acionista Controlador'
-          },
-          {
-            name: 'Interbrew International B.V.',
-            document: 'Empresa Estrangeira',
-            type: 'Acionista'
-          }
-        ],
-        activities: [
-          {
-            code: '11.31-5-02',
-            description: 'Fabricação de cervejas e chopes',
-            isMain: true
-          },
-          {
-            code: '11.22-4-99',
-            description: 'Fabricação de outras bebidas não-alcoólicas não especificadas anteriormente',
-            isMain: false
-          }
-        ]
-      }
-    }
 
     try {
+      console.log('Fetching data for CNPJ:', cleanCNPJ)
       const response = await axios.get<ReceitaFederalResponse>(`https://publica.cnpj.ws/cnpj/${cleanCNPJ}`)
       const data = response.data
+      console.log('API Response:', data)
 
-      // Try to get the company name from our known companies first
-      const knownCompanyName = this.getCompanyNameFromCNPJ(cleanCNPJ)
-      
+      if (!data) {
+        console.log('No data received from API, using mock data')
+        return this.getMockCompanyData(cleanCNPJ)
+      }
+
       return {
-        name: data.razao_social || knownCompanyName,
+        name: data.razao_social || this.getCompanyNameFromCNPJ(cleanCNPJ),
         cnpj: formatCNPJ(cleanCNPJ),
-        legalNature: data.natureza_juridica || "Não disponível",
-        capital: data.capital_social || this.getRandomCapital(),
-        foundingDate: data.data_inicio_atividade || this.getRandomPastDate(),
-        status: data.descricao_situacao_cadastral || "Ativa",
+        legalNature: data.natureza_juridica?.descricao || "Sociedade Empresária Limitada",
+        capital: parseFloat(data.capital_social) || this.getRandomCapital(),
+        foundingDate: data.estabelecimento?.data_inicio_atividade || this.getRandomPastDate(),
+        status: data.estabelecimento?.situacao_cadastral || "Ativa",
         address: {
-          street: data.endereco.logradouro || "Não disponível",
-          number: data.endereco.numero || "S/N",
-          complement: data.endereco.complemento || "",
-          neighborhood: data.endereco.bairro || "Não disponível",
-          city: data.endereco.municipio || "Não disponível",
-          state: data.endereco.uf || "SP",
-          zipCode: data.endereco.cep || "00000-000"
+          street: `${data.estabelecimento?.tipo_logradouro || ''} ${data.estabelecimento?.logradouro || 'Endereço não disponível'}`.trim(),
+          number: data.estabelecimento?.numero || "S/N",
+          complement: data.estabelecimento?.complemento || "",
+          neighborhood: data.estabelecimento?.bairro || "Bairro não disponível",
+          city: data.estabelecimento?.cidade?.nome || "Cidade não disponível",
+          state: data.estabelecimento?.estado?.sigla || "SP",
+          zipCode: data.estabelecimento?.cep || "00000-000"
         },
-        partners: this.getRandomPartners(),
-        activities: this.getRandomActivities()
+        partners: data.socios?.map(socio => ({
+          name: socio.nome,
+          document: socio.cpf_cnpj_socio,
+          type: socio.tipo
+        })) || this.getRandomPartners(),
+        activities: [
+          {
+            code: data.estabelecimento?.atividade_principal?.id || "00000",
+            description: data.estabelecimento?.atividade_principal?.descricao || "Atividade não especificada",
+            isMain: true
+          },
+          ...(data.estabelecimento?.atividades_secundarias?.map(ativ => ({
+            code: ativ.id || "00000",
+            description: ativ.descricao || "Atividade não especificada",
+            isMain: false
+          })) || [])
+        ]
       }
     } catch (error) {
-      console.error('Error fetching real company data:', error)
-      // If API fails, try to get from known companies or return mock data
+      console.error('Error fetching company data:', error)
       return this.getMockCompanyData(cleanCNPJ)
     }
   }
@@ -382,14 +375,25 @@ export class PublicDataService {
   }
 
   private getMockCompanyData(cnpj: string): CompanyData {
+    const cleanCNPJ = cnpj.replace(/\D/g, '')
+    const companyName = this.getCompanyNameFromCNPJ(cleanCNPJ)
+    
     return {
-      name: this.getCompanyNameFromCNPJ(cnpj),
-      cnpj: cnpj,
+      name: companyName,
+      cnpj: formatCNPJ(cleanCNPJ),
       legalNature: "Sociedade Empresária Limitada",
       capital: this.getRandomCapital(),
       foundingDate: this.getRandomPastDate(),
       status: "Ativa",
-      address: this.getRandomAddress(),
+      address: {
+        street: "Avenida Paulista",
+        number: String(Math.floor(Math.random() * 2000) + 1),
+        complement: "",
+        neighborhood: "Bela Vista",
+        city: "São Paulo",
+        state: "SP",
+        zipCode: "01310-100"
+      },
       partners: this.getRandomPartners(),
       activities: this.getRandomActivities()
     }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { PDFViewer, usePDF } from '@react-pdf/renderer'
+import { PDFViewer, usePDF, UsePDFInstance } from '@react-pdf/renderer'
 import { CompanyData } from '@/components/CompanyData'
 import { LegalData } from '@/components/LegalData'
 import { MediaData } from '@/components/MediaData'
@@ -13,6 +13,28 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { validateCNPJ, formatCNPJ } from '@/lib/cnpj'
 import { BusinessDossier, ApiError } from '@/types'
 
+interface PDFGeneratorProps {
+  companyData: BusinessDossier
+  setFullPdf: (pdf: UsePDFInstance) => void
+  setMinimalPdf: (pdf: UsePDFInstance) => void
+}
+
+const PDFGenerator = ({ companyData, setFullPdf, setMinimalPdf }: PDFGeneratorProps) => {
+  const [generatedFullPdf] = usePDF({ document: <DossierPDF data={companyData} /> })
+  const [generatedMinimalPdf] = usePDF({ document: <MinimalDossierPDF data={companyData} /> })
+
+  useEffect(() => {
+    if (generatedFullPdf) {
+      setFullPdf(generatedFullPdf)
+    }
+    if (generatedMinimalPdf) {
+      setMinimalPdf(generatedMinimalPdf)
+    }
+  }, [generatedFullPdf, generatedMinimalPdf, setFullPdf, setMinimalPdf])
+
+  return null
+}
+
 export default function Home() {
   const [cnpj, setCnpj] = useState('')
   const [companyData, setCompanyData] = useState<BusinessDossier | null>(null)
@@ -20,18 +42,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [pdfView, setPdfView] = useState<'full' | 'minimal'>('full')
   const [isPdfVisible, setIsPdfVisible] = useState(false)
-
-  const [fullPdf, setFullPdf] = useState<any>(null)
-  const [minimalPdf, setMinimalPdf] = useState<any>(null)
-
-  useEffect(() => {
-    if (companyData) {
-      const [generatedFullPdf] = usePDF({ document: <DossierPDF data={companyData} /> })
-      const [generatedMinimalPdf] = usePDF({ document: <MinimalDossierPDF data={companyData} /> })
-      setFullPdf(generatedFullPdf)
-      setMinimalPdf(generatedMinimalPdf)
-    }
-  }, [companyData])
+  const [fullPdf, setFullPdf] = useState<UsePDFInstance | null>(null)
+  const [minimalPdf, setMinimalPdf] = useState<UsePDFInstance | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,6 +102,9 @@ export default function Home() {
           </h1>
           <p className="mt-3 max-w-md mx-auto text-base text-gray-600 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
             Gere dossiês empresariais completos automaticamente a partir do CNPJ
+          </p>
+          <p className="mt-5 max-w-md mx-auto text-sm text-gray-500 sm:text-base md:mt-6 md:text-lg md:max-w-3xl">
+            Este gerador permite que você obtenha informações detalhadas sobre empresas, incluindo dados financeiros, legais e de mídia, tudo em um único lugar.
           </p>
         </div>
 
@@ -181,21 +196,21 @@ export default function Home() {
                 </div>
                 <div className="flex space-x-4">
                   <a
-                    href={fullPdf.url || '#'}
+                    href={fullPdf?.url || '#'}
                     download={`dossie-completo-${companyData?.cnpj}.pdf`}
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-300"
-                    onClick={(e) => !fullPdf.url && e.preventDefault()}
+                    onClick={(e) => !fullPdf?.url && e.preventDefault()}
                   >
-                    {fullPdf.loading ? 'Gerando PDF...' : 'Baixar PDF Completo'}
+                    {fullPdf?.loading ? 'Gerando PDF...' : 'Baixar PDF Completo'}
                   </a>
 
                   <a
-                    href={minimalPdf.url || '#'}
+                    href={minimalPdf?.url || '#'}
                     download={`dossie-resumido-${companyData?.cnpj}.pdf`}
                     className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-300"
-                    onClick={(e) => !minimalPdf.url && e.preventDefault()}
+                    onClick={(e) => !minimalPdf?.url && e.preventDefault()}
                   >
-                    {minimalPdf.loading ? 'Gerando PDF...' : 'Baixar PDF Resumido'}
+                    {minimalPdf?.loading ? 'Gerando PDF...' : 'Baixar PDF Resumido'}
                   </a>
                 </div>
               </div>
@@ -273,7 +288,15 @@ export default function Home() {
             </div>
           </div>
         )}
+        {companyData && (
+          <PDFGenerator 
+            companyData={companyData} 
+            setFullPdf={setFullPdf} 
+            setMinimalPdf={setMinimalPdf}
+          />
+        )}
       </div>
     </div>
   )
 } 
+
